@@ -153,7 +153,7 @@ Combine all steps above in `./Code/drawLane.py`, here's the ouput lane detection
 
 ### Pipeline (video)
 
-In `./Code/drawLane.py`, I combine all pipline code and load the `project_video.mp4` to find the lane.
+In `./Code/Ouput.ipynb`, I combine all pipline code and load the `project_video.mp4` to find the lane.
 
 Here's a [link to my video result](./output_videos/project_video.mp4)
 
