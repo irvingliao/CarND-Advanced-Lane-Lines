@@ -143,6 +143,9 @@ The code is implemented in `./Code/drawLane.py`
 
 #### 6. Output
 
+I trid to smooth the lane line drawing by apply create previus lanes queue with n = 5 iteration to get the previous lines average fit value and average it with new line's fit value.
+And I set a threshold, if the line fit value is way different from the previous average fit value, then it will skip the current bad result and use the previous one instead.
+
 Combine all steps above in `./Code/drawLane.py`, here's the ouput lane detection I got:
 ![alt text][test5_line]
 
@@ -160,4 +163,9 @@ Here's a [link to my video result](./output_videos/project_video.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
+For the smooth line solution I appied in project, probably not work if multiple frames in row is detected as very off lines. Which will possibly ruin the following detections.
+The way to resolve this is to reset the status to use slding window to detect the line again.
+
+And the histogram to target the start point of lane, it will fail in some case if there's several noice patterns detected in color gradients out, which will lead to find a wrong staring point of line.
+
+A possible way to improve that is use a estimate algorithm to decide what the line starting point will be, and at that range select the highest possible position.
