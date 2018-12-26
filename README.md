@@ -1,19 +1,8 @@
-## Advanced Lane Finding
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
+## README
 
-
-In this project, your goal is to write a software pipeline to identify the lane boundaries in a video, but the main output or product we want you to create is a detailed writeup of the project.  Check out the [writeup template](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) for this project and use it as a starting point for creating your own writeup.  
-
-Creating a great writeup:
 ---
-A great writeup should include the rubric points as well as your description of how you addressed each point.  You should include a detailed description of the code used in each step (with line-number references and code snippets where necessary), and links to other supporting documents or external references.  You should include images in your writeup to demonstrate how your code works with examples.  
 
-All that said, please be concise!  We're not looking for you to write a book here, just a brief description of how you passed each rubric point, and references to the relevant code :). 
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup.
-
-The Project
----
+**Advanced Lane Finding Project**
 
 The goals / steps of this project are the following:
 
@@ -26,14 +15,149 @@ The goals / steps of this project are the following:
 * Warp the detected lane boundaries back onto the original image.
 * Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
 
-The images for camera calibration are stored in the folder called `camera_cal`.  The images in `test_images` are for testing your pipeline on single frames.  If you want to extract more test images from the videos, you can simply use an image writing method like `cv2.imwrite()`, i.e., you can read the video in frame by frame as usual, and for frames you want to save for later you can write to an image file.  
+[//]: # (Image References)
 
-To help the reviewer examine your work, please save examples of the output from each stage of your pipeline in the folder called `output_images`, and include a description in your writeup for the project of what each image shows.    The video called `project_video.mp4` is the video your pipeline should work well on.  
+[calib_undist]: ./output_images/ChessBoard_Calibration.png "Undistorted"
+[test5_original]: ./test_images/test5.jpg "Original Road"
+[test5_undist]: ./test_images/test5_undist.jpg "Undistortion Road"
+[test5_color_gradient]: ./output_images/test5_color-gradient.jpg "Color Gradient Threshold"
+[test5_persp]: ./output_images/test5_persp.jpg "Warp Sample"
+[test5_sliding]: ./output_images/test5_sliding.jpg "Sliding Window"
+[test5_prepoly]: ./output_images/test5_prevpoly.jpg "Prev Polynomial"
+[curvature1]: ./output_images/curvature1.jpg "Curvature Equation 1"
+[curvature2]: ./output_images/curvature2.jpg "Curvature Equation 2"
+[curvature3]: ./output_images/curvature3.jpg "Curvature Equation 3"
+[test5_line]: ./output_images/test5_line.jpg "Draw the lane"
+[video1]: ./project_video.mp4 "Video"
 
-The `challenge_video.mp4` video is an extra (and optional) challenge for you if you want to test your pipeline under somewhat trickier conditions.  The `harder_challenge.mp4` video is another optional challenge and is brutal!
+## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
-If you're feeling ambitious (again, totally optional though), don't stop there!  We encourage you to go out and take video of your own, calibrate your camera and show us how you would implement this project from scratch!
+### Here I will consider the rubric points individually and describe how I addressed each point in my implementation.  
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+---
 
+### Camera Calibration
+
+#### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
+
+The code for this step is contained in the first code cell of the IPython notebook located in `./Code/calibration.ipynb`.
+
+First, I tried to get some "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. I assume the the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.
+I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints`, which is 2d points in image plane, will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.
+
+I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function. I store the result of calibration to the pickle `camera_cal/dist_pickle.p`. From the result, I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result:
+
+![alt text][calib_undist]
+
+### Pipeline to approach the land detection
+
+#### 1. Get distortion-corrected image.
+
+I use the previous calibration resutl pickle file `camera_cal/dist_pickle.p` to get camera matrix and distortion coefficient, then use `cv2.undistort` to get the distortion correction images like
+![alt text][test5_original]
+
+After correction:
+![alt text][test5_undist]
+
+#### 2. Color transforms, gradients or other methods to create a thresholded binary image.
+
+Implement a combination of color and gradient thresholds to generate a binary image (thresholding steps at lines # through # in `./Code/color-gradient.py`).
+From the image, we can also see the lane line is mostly in Yellow and White. So I also apply the threshold to track the Yellow and White color. (Reference: http://aishack.in/tutorials/tracking-colored-objects-opencv)
+
+Here's Yellow and White Threshold I got:
+```python
+    yellow = colorBinary(hsv, (5, 100, 100), (75, 255, 255))
+    white = colorBinary(hsv, (19, 0, 255-72), (255, 72, 255))
+```
+
+![alt text][test5_color_gradient]
+
+#### 3. Performed a perspective transform to get Birds eye view
+
+The code for my perspective transform includes in `Warp.py`, which will transform the color gradient binary image generated by `./Code/color-gradient.py`.  The `warper()` function takes as inputs an image (`img`), as well as source (`src`) and destination (`dst`) points.  
+Here's the source and destination points:
+
+```python
+src = np.float32(
+    [[(img_size[0] / 2) - 50, img_size[1] / 2 + 100],
+    [((img_size[0] / 6) - 10), img_size[1]],
+    [(img_size[0] * 5 / 6) + 60, img_size[1]],
+    [(img_size[0] / 2 + 50), img_size[1] / 2 + 100]])
+dst = np.float32(
+    [[(img_size[0] / 4), 0],
+    [(img_size[0] / 4), img_size[1]],
+    [(img_size[0] * 3 / 4), img_size[1]],
+    [(img_size[0] * 3 / 4), 0]])
+```
+
+This resulted in the following source and destination points:
+
+| Source        | Destination   | 
+|:-------------:|:-------------:| 
+| 590, 460      | 320, 0        | 
+| 203, 720      | 320, 720      |
+| 1127, 720     | 960, 720      |
+| 690, 460      | 960, 0        |
+
+Here's my perspective transform by drawing the `src` and `dst` points onto a test image:
+
+![alt text][test5_persp]
+
+#### 4. Identified lane-line pixels and fit their positions with a polynomial
+The code `./Code/FindLaneLine.py` implement the way the find the lane line's polynomial fit values.
+For initial land finding, first we find the base x value of the line from histogram, and starting from that base x, I use Sliding Window by set up the margin = 100 to find the fitting pixels and get the polynomial coefficients to fit the lane: x = ay**2 + by + c.
+
+If we hav previous frame lane lines polynomial coefficients available, we will taka advantage of it and set the new search area.
+
+![alt text][test5_sliding]
+
+Use Previous Polynomial Coefficients:
+![alt text][test5_prepoly]
+
+#### 5. Calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
+From the tutorial: https://www.intmath.com/applications-differentiation/8-radius-curvature.php
+The radius of curvature is given as follows:
+![alt text][curvature1]
+
+In the case of the second order polynomial above, the first and second derivatives are:
+![alt text][curvature2]
+
+So, our equation for radius of curvature becomes:
+![alt text][curvature3]
+
+In `./Code/drawLane.py` the function `measure_curvature_pixels()` calculate the curvature of left and right line by using the equation above.
+
+The lane is about 30 meters long, that our camera image has 720 relevant pixels in the y-dimension
+|With U.S. regulations that require a minimum lane width of 12 feet or 3.7 meters, and the lane in pixel is roughly about 700 pixels
+
+So pixel to meter ratio of y = 30/720, x = 3.7/700
+
+We assume the camera is always be the center of the vehicle, so the center of camera view view will be the center of the vehicle.
+Then we can find base x of left and right line by apply y=719, so we'll get the center of lane is `(left_x + right_x)/2`
+For vehicle center offset from the line, we'll get
+```python
+    diff_center = image_width/2 - (left_x + right_x)/2
+```
+If `diff_center` is > 0, then the car is right of the lane center, < 0 will be on the left.
+The code is implemented in `./Code/drawLane.py`
+
+#### 6. Output
+
+Combine all steps above in `./Code/drawLane.py`, here's the ouput lane detection I got:
+![alt text][test5_line]
+
+---
+
+### Pipeline (video)
+
+In `./Code/drawLane.py`, I combine all pipline code and load the `project_video.mp4` to find the lane.
+
+Here's a [link to my video result](./output_videos/project_video.mp4)
+
+---
+
+### Discussion
+
+#### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
+
+Here I'll talk about the approach I took, what techniques I used, what worked and why, where the pipeline might fail and how I might improve it if I were going to pursue this project further.  
