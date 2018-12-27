@@ -126,8 +126,8 @@ def processColorGradient(img, s_thresh=(170, 255), h_thresh=(15, 100), sx_thresh
 import re
 # Color Transfrom, Gradient with threshold
 
-images = glob.glob('../output_images/Undist/test1_undist.jpg')
-pattern = re.compile('/test_images/(.*)_undist.jpg')
+images = glob.glob('../output_images/Undist/test*_undist.jpg')
+pattern = re.compile('/output_images/Undist/(.*)_undist.jpg')
 
 for fname in images:
     image = mpimg.imread(fname)
@@ -136,7 +136,7 @@ for fname in images:
                                 sx_thresh=(20, 100), sy_thresh=(0, 255), 
                                 mag_thresh=(30, 100), dir_thresh=(np.pi*30/180, np.pi*75/180), 
                                 kernel=3)
-    # name = pattern.search(fname).group(1)
-    # path = '../output_images/' + name + '_color-gradient.jpg' 
-    path = '../output_images/test1_color-gradient.jpg' 
+    name = pattern.search(fname).group(1)
+    path = '../output_images/' + name + '_color-gradient.jpg' 
+    # path = '../output_images/test2_color-gradient.jpg' 
     mpimg.imsave(path, combined, cmap='gray')

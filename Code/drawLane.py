@@ -116,14 +116,14 @@ def processColorGradient(img, s_thresh=(170, 255), h_thresh=(15, 100), sx_thresh
     hsv = cv2.cvtColor(img, cv2.COLOR_RGB2HSV)
     yellow = colorBinary(hsv, (5, 100, 100), (75, 255, 255))
     white = colorBinary(hsv, (19, 0, 255-72), (255, 72, 255))
-
-    # Stack each channel
-    color_binary = np.dstack(( np.zeros_like(sxbinary), s_binary, h_binary, sxbinary, sybinary, mag_binary, dir_binary)) * 255
+    
+    yorw = np.zeros_like(sxbinary)
+    yorw[(yellow == 1) | (white == 1)] = 1
     
     # Combine the binary thresholds
     combined_binary = np.zeros_like(sxbinary)
-    combined_binary[ ((s_binary == 1) & ((h_binary == 1) | (yellow == 1) | (white == 1)) ) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1)) ] = 1
-    return color_binary, combined_binary
+    combined_binary[ (yorw == 1) & (((s_binary == 1) & (h_binary == 1)) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1))) ] = 1
+    return combined_binary
 
 # Warp image by using Perspective Transform
 def warper(img, src, dst):
@@ -288,7 +288,7 @@ mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
 
 # Calculates the curvature of polynomial functions in pixels.
-def measure_curvature_pixels(ploty, left_fit, right_fit, xm_per_pix = (3.7/700)):
+def measure_curvature_pixels(ploty, left_fit, right_fit):
     # Define conversions in x and y from pixels space to meters
     ym_per_pix = 30/720 # meters per pixel in y dimension
 
@@ -347,7 +347,7 @@ def processImage(img):
     undist = cv2.undistort(img, mtx, dist, None, mtx)
 
     # Color Gradient threshold
-    color_binary, cg_combined = processColorGradient(undist, s_thresh=(170, 250), h_thresh=(15, 100), sx_thresh=(20, 100), sy_thresh=(0, 255), mag_thresh=(30, 100), dir_thresh=(np.pi*30/180, np.pi*75/180), kernel=3)
+    cg_combined = processColorGradient(undist, s_thresh=(170, 250), h_thresh=(15, 100), sx_thresh=(20, 100), sy_thresh=(0, 255), mag_thresh=(30, 100), dir_thresh=(np.pi*30/180, np.pi*75/180), kernel=3)
     # mpimg.imsave('../output_images/test1_gradient.jpg', cg_combined)
 
     img_size = (img.shape[1], img.shape[0])
@@ -451,7 +451,11 @@ def processImage(img):
     diff_center_text = f"Vehicle is {np.absolute(diff_center):.2f}m " + direction + " of center"
     # print("diff from center:", diff_center)
 
-    left_curv, right_curv = measure_curvature_pixels(ploty, left_fit, right_fit, m_per_p)
+    ym_per_pix = 30/720 # meters per pixel in y dimension
+
+    real_left_fit = np.polyfit(ploty*ym_per_pix, newLane.left_line.bestx*m_per_p, 2)
+    real_right_fit = np.polyfit(ploty*ym_per_pix, newLane.right_line.bestx*m_per_p, 2)
+    left_curv, right_curv = measure_curvature_pixels(ploty, real_left_fit, real_right_fit)
     newLane.left_line.radius_of_curvature = left_curv
     newLane.right_line.radius_of_curvature = right_curv
     curv_left_text = f"Left Curvature: {left_curv:.2f}m"
@@ -473,8 +477,8 @@ def processImage(img):
     return result
 
 #%%
-test_imgs = glob.glob('../test_images/*.jpg')
-pattern = re.compile('/test_images/(.*).jpg')
+test_imgs = glob.glob('../output_images/Undist/test*_undist.jpg')
+pattern = re.compile('/output_images/Undist/(.*)_undist.jpg')
 
 for fname in test_imgs:
     image = mpimg.imread(fname)

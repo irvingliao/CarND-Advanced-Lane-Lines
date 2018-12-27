@@ -25,6 +25,8 @@ import re
 from Lane import Line, Lane
 from collections import deque
 from IPython import get_ipython
+from moviepy.editor import VideoFileClip
+from IPython.display import HTML
 
 def abs_sobel_thresh(img, orient='x', thresh_min=0, thresh_max=255, kernel=3):
     
@@ -138,7 +140,9 @@ def processColorGradient(img, s_thresh=(170, 255), h_thresh=(15, 100), sx_thresh
     
     # Combine the binary thresholds
     combined_binary = np.zeros_like(sxbinary)
-    combined_binary[ (yorw == 1) & (((s_binary == 1) & (h_binary == 1) ) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1))) ] = 1
+    # combined_binary[ (yorw == 1) & (((s_binary == 1) & (h_binary == 1) ) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1))) ] = 1
+    # combined_binary[ ((s_binary == 1) & ((h_binary == 1) | (yorw == 1)) ) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1)) ] = 1
+    combined_binary[ ((s_binary == 1) & (h_binary == 1)) | (sxbinary == 1) | ((yorw == 1) & (mag_binary == 1) & (dir_binary == 1)) ] = 1
     return combined_binary
 
 # Warp image by using Perspective Transform
@@ -303,7 +307,7 @@ mtx = dist_pickle["mtx"]
 dist = dist_pickle["dist"]
 
 # Calculates the curvature of polynomial functions in pixels.
-def measure_curvature_pixels(ploty, left_fit, right_fit, xm_per_pix = (3.7/700)):
+def measure_curvature_pixels(ploty, left_fit, right_fit):
     # Define conversions in x and y from pixels space to meters
     ym_per_pix = 30/720 # meters per pixel in y dimension
 
@@ -466,7 +470,11 @@ def processImage(img):
     diff_center_text = f"Vehicle is {np.absolute(diff_center):.2f}m " + direction + " of center"
     # print("diff from center:", diff_center)
 
-    left_curv, right_curv = measure_curvature_pixels(ploty, left_fit, right_fit, m_per_p)
+    ym_per_pix = 30/720 # meters per pixel in y dimension
+
+    real_left_fit = np.polyfit(ploty*ym_per_pix, newLane.left_line.bestx*m_per_p, 2)
+    real_right_fit = np.polyfit(ploty*ym_per_pix, newLane.right_line.bestx*m_per_p, 2)
+    left_curv, right_curv = measure_curvature_pixels(ploty, real_left_fit, real_right_fit)
     newLane.left_line.radius_of_curvature = left_curv
     newLane.right_line.radius_of_curvature = right_curv
     curv_left_text = f"Left Curvature: {left_curv:.2f}m"
@@ -488,21 +496,17 @@ def processImage(img):
     return result
 
 #%%
-from moviepy.editor import VideoFileClip
-from IPython.display import HTML
-
-output = '../output_videos/project_video.mp4'
-# clip1 = VideoFileClip("../project_video.mp4").subclip(20,24)
-clip1 = VideoFileClip("../project_video.mp4")
-clip = clip1.fl_image(processImage) #NOTE: this function expects color images!!
-get_ipython().run_line_magic('time', 'clip.write_videofile(output, audio=False)')
+# output = '../output_videos/project_video.mp4'
+# # clip1 = VideoFileClip("../project_video.mp4").subclip(20,24)
+# clip1 = VideoFileClip("../project_video.mp4")
+# clip = clip1.fl_image(processImage) #NOTE: this function expects color images!!
+# clip.write_videofile(output, audio=False)
+# # get_ipython().run_line_magic('time', 'clip.write_videofile(output, audio=False)')
 
 #%%
-from moviepy.editor import VideoFileClip
-from IPython.display import HTML
-
 output = '../output_videos/challenge_video.mp4'
 clip1 = VideoFileClip("../challenge_video.mp4").subclip(0,5)
 # clip1 = VideoFileClip("../challenge_video.mp4")
 clip = clip1.fl_image(processImage) #NOTE: this function expects color images!!
-get_ipython().run_line_magic('time', 'clip.write_videofile(output, audio=False)')
+clip.write_videofile(output, audio=False)
+# get_ipython().run_line_magic('time', 'clip.write_videofile(output, audio=False)')
