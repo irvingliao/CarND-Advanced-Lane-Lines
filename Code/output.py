@@ -133,13 +133,13 @@ def processColorGradient(img, s_thresh=(170, 255), h_thresh=(15, 100), sx_thresh
     yellow = colorBinary(hsv, (5, 100, 100), (75, 255, 255))
     white = colorBinary(hsv, (19, 0, 255-72), (255, 72, 255))
 
-    # Stack each channel
-    color_binary = np.dstack(( np.zeros_like(sxbinary), s_binary, h_binary, sxbinary, sybinary, mag_binary, dir_binary)) * 255
+    yorw = np.zeros_like(sxbinary)
+    yorw[(yellow == 1) | (white == 1)] = 1
     
     # Combine the binary thresholds
     combined_binary = np.zeros_like(sxbinary)
-    combined_binary[ ((s_binary == 1) & ((h_binary == 1) | (yellow == 1) | (white == 1)) ) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1)) ] = 1
-    return color_binary, combined_binary
+    combined_binary[ (yorw == 1) & (((s_binary == 1) & (h_binary == 1) ) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1))) ] = 1
+    return combined_binary
 
 # Warp image by using Perspective Transform
 def warper(img, src, dst):
@@ -297,10 +297,6 @@ def search_around_poly(binary_warped, left_fit, right_fit):
     
     return left_fit, right_fit, left_fitx, right_fitx
 
-#%% [markdown]
-# ## Draw the Lane Line, calculate the curvature.
-# 
-#%%
 prev_lanes = deque(maxlen=5)
 dist_pickle = pickle.load( open( "../camera_cal/dist_pickle.p", "rb" ) )
 mtx = dist_pickle["mtx"]
@@ -366,7 +362,7 @@ def processImage(img):
     undist = cv2.undistort(img, mtx, dist, None, mtx)
 
     # Color Gradient threshold
-    color_binary, cg_combined = processColorGradient(undist, s_thresh=(170, 250), h_thresh=(15, 100), sx_thresh=(20, 100), sy_thresh=(0, 255), mag_thresh=(30, 100), dir_thresh=(np.pi*30/180, np.pi*75/180), kernel=3)
+    cg_combined = processColorGradient(undist, s_thresh=(170, 250), h_thresh=(15, 100), sx_thresh=(20, 100), sy_thresh=(0, 255), mag_thresh=(30, 100), dir_thresh=(np.pi*30/180, np.pi*75/180), kernel=3)
     # mpimg.imsave('../output_images/test1_gradient.jpg', cg_combined)
 
     img_size = (img.shape[1], img.shape[0])

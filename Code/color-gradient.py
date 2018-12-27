@@ -114,17 +114,19 @@ def processColorGradient(img, s_thresh=(170, 255), h_thresh=(15, 100), sx_thresh
 
     # Stack each channel
     color_binary = np.dstack(( np.zeros_like(sxbinary), s_binary, h_binary, sxbinary, sybinary, mag_binary, dir_binary)) * 255
+    yorw = np.zeros_like(sxbinary)
+    yorw[(yellow == 1) | (white == 1)] = 1
     
     # Combine the binary thresholds
     combined_binary = np.zeros_like(sxbinary)
-    combined_binary[ ((s_binary == 1) & ((h_binary == 1) | (yellow == 1) | (white == 1)) ) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1)) ] = 1
+    combined_binary[ (yorw == 1) & (((s_binary == 1) & (h_binary == 1)) | ((sxbinary == 1) & (sybinary == 1)) | ((mag_binary == 1) & (dir_binary == 1))) ] = 1
     return color_binary, combined_binary
 
 #%%
 import re
 # Color Transfrom, Gradient with threshold
 
-images = glob.glob('../test_images/*_undist.jpg')
+images = glob.glob('../output_images/Undist/test1_undist.jpg')
 pattern = re.compile('/test_images/(.*)_undist.jpg')
 
 for fname in images:
@@ -134,6 +136,7 @@ for fname in images:
                                 sx_thresh=(20, 100), sy_thresh=(0, 255), 
                                 mag_thresh=(30, 100), dir_thresh=(np.pi*30/180, np.pi*75/180), 
                                 kernel=3)
-    name = pattern.search(fname).group(1)
-    path = '../output_images/' + name + '_color-gradient.jpg' 
+    # name = pattern.search(fname).group(1)
+    # path = '../output_images/' + name + '_color-gradient.jpg' 
+    path = '../output_images/test1_color-gradient.jpg' 
     mpimg.imsave(path, combined, cmap='gray')
